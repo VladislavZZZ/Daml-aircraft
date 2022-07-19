@@ -1,0 +1,127 @@
+module Main where
+
+import Daml.Script
+
+type AircraftPartId = ContractId AircraftPart
+type RequestOrderId = ContractId RequestOrder
+type OrderId = ContractId Order
+type InTransportAircraftPartId = ContractId InTransportAircraftPart
+type OutTransportAircraftPartId = ContractId OutTransportAircraftPart
+type FitIntoId = Int
+
+
+template AircraftPart
+  with
+    issuer : Party
+    owner  : Party
+    public : Party
+    name   : Text
+  where
+    ensure name /= ""
+    signatory issuer
+    observer owner, public
+
+template RequestOrder
+  with
+    orderer     : Party
+    orderee     : Party
+    transporter : Party
+    name        : Text
+  where
+    ensure name /= ""
+    signatory orderer
+    observer orderee
+    choice Accept : OrderId
+      controller orderee
+        do 
+          create Order with ..
+    nonconsuming choice Reject : ()
+      controller orderee
+        do
+          return ()
+          
+template Order
+  with
+    orderer     : Party
+    orderee     : Party
+    transporter : Party
+    name        : Text
+  where
+    ensure name /= ""
+    signatory orderer, orderee  
+    observer transporter
+    choice Transport : InTransportAircraftPartId
+      controller transporter
+        do
+          create InTransportAircraftPart with ..
+
+template InTransportAircraftPart
+  with
+    orderer      : Party
+    orderee       : Party
+    transporter : Party
+    name        : Text
+  where
+    ensure name /= ""
+    signatory orderer
+    observer orderee
+    choice OutTransport : OutTransportAircraftPartId
+      controller transporter
+        do
+          create OutTransportAircraftPart with ..
+
+template OutTransportAircraftPart
+  with
+    orderer      : Party
+    orderee       : Party
+    transporter : Party
+    name        : Text
+  where
+    ensure name /= ""
+    signatory orderer
+    observer orderee
+    choice Confirmed : ()
+      controller orderer
+        do
+          create AircraftPart with ..
+          return ()
+      -- ENDPOINT --
+
+      -- controller transporter
+      --   do
+      --     create (nothing!!!!) with ..
+
+
+
+
+
+
+
+
+
+
+-- setup : Script ()
+-- setup = script do
+-- -- user_setup_begin
+--   alice <- allocatePartyWithHint "Alice" (PartyIdHint "Alice")
+--   bob <- allocatePartyWithHint "Bob" (PartyIdHint "Bob")
+--   aliceId <- validateUserId "alice"
+--   bobId <- validateUserId "bob"
+--   createUser (User aliceId (Some alice)) [CanActAs alice]
+--   createUser (User bobId (Some bob)) [CanActAs bob]
+-- -- user_setup_end
+
+--   aliceTV <- submit alice do
+--     createCmd AircraftPart with
+--       issuer = alice
+--       owner = alice
+--       name = "TV"
+
+  -- return ()
+{-
+  bobTV <- submit alice do
+    exerciseCmd aliceTV Give with newOwner = bob
+
+  submit bob do
+    exerciseCmd bobTV Give with newOwner = alice
+-}
